@@ -8,9 +8,9 @@ import java.io.PrintWriter;
 public class Matrix {
     public static void main (String args[]) {
         mulDenseDense();
-//        mulSparseSparse();
-//        mulDenseSparce();
-//        mulSparceDense();
+        mulSparseSparse();
+        mulDenseSparce();
+        mulSparceDense();
     }
 
     private static void mulDenseDense() {

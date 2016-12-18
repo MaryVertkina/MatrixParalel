@@ -7,6 +7,8 @@ import java.util.Scanner;
 
 public class DenseMatrix implements IMatrix {
     private double matrix[][];
+    private double resMatrix[][];
+    int num = 0;
 
     public DenseMatrix(String inFileName) {
         Scanner in = null;
@@ -14,6 +16,7 @@ public class DenseMatrix implements IMatrix {
             in = new Scanner(new File(inFileName));
             int size = in.nextInt();
             matrix = new double[size][size];
+            resMatrix = new double[size][size];
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
                     matrix[i][j] = in.nextDouble();
@@ -32,38 +35,76 @@ public class DenseMatrix implements IMatrix {
         matrix = new double[size][size];
     }
 
-    @Override
-    public IMatrix multiply(IMatrix o) {
-        return (o instanceof DenseMatrix) ? multiplyDense((DenseMatrix) o) : multiplySparse((SparseMatrix) o);
+    private DenseMatrix(double matrix[][]) {
+        this.matrix = matrix;
     }
 
-    private IMatrix multiplyDense(DenseMatrix o) {
+    @Override
+    public IMatrix multiply(IMatrix o) {
+        if (o instanceof DenseMatrix) {
+            MultRow one = new MultRow(o, "one");
+            MultRow two = new MultRow(o, "two");
+            MultRow three = new MultRow(o, "three");
+            MultRow four = new MultRow(o, "four");
+
+            try {
+                one.thread.join();
+                two.thread.join();
+                three.thread.join();
+                four.thread.join();
+
+            } catch (InterruptedException e){
+                e.printStackTrace();
+            }
+        } else {
+            multiplySparse((SparseMatrix) o);
+        }
+
+        return new DenseMatrix(resMatrix);
+    }
+
+    private synchronized int next() {
+        return num++;
+    }
+
+    private void multiplyDense(DenseMatrix o) {
         int size = matrix.length;
-        DenseMatrix resMatrix = new DenseMatrix(size);
         o.transponation();
-        for (int i = 0; i < size; i++) {
+        for (int i = next(); i < size; i = next()) {
             for (int j = 0; j < size; j++) {
                 for (int k = 0; k < size; k++) {
-                    resMatrix.getMatrix()[i][j] += this.matrix[i][k] * o.getMatrix()[j][k];
+                    resMatrix[i][j] += matrix[i][k] * o.getMatrix()[j][k];
                 }
             }
         }
-        return resMatrix;
     }
 
-    private IMatrix multiplySparse(SparseMatrix o) {
+    private void multiplySparse(SparseMatrix o) {
         int size = matrix.length;
-        DenseMatrix resMatrix = new DenseMatrix(size);
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 for (int k = 0; k < size; k++) {
                     Point coord2 = new Point(j, k);
                     double v2 = o.getMap().get(coord2) != null ? o.getMap().get(coord2) : 0;
-                    resMatrix.getMatrix()[i][j] += this.matrix[i][k] * v2;
+                    resMatrix[i][j] += matrix[i][k] * v2;
                 }
             }
         }
-        return resMatrix;
+    }
+
+    class MultRow implements Runnable {
+        IMatrix o;
+        Thread thread;
+
+        public MultRow(IMatrix o, String s) {
+            this.o = o;
+            thread = new Thread(this, s);
+            thread.start();
+        }
+
+        public void run() {
+            multiplyDense((DenseMatrix) o);
+        }
     }
 
     @Override
